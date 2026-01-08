@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package board;
-option go_package = "proto/board";
+option go_package = "github.com/ilyarogozin/task_board_go_project/gen/go/board/";
 
 service BoardService {
   rpc CreateBoard (CreateBoardRequest) returns (BoardResponse);
