@@ -68,6 +68,9 @@ func main() {
 
 		return c.JSON(fiber.Map{
 			"id": resp.Id,
+			"title": resp.Title,
+			"description": resp.Description,
+			"owner_id": resp.OwnerId,
 		})
 	})
 
