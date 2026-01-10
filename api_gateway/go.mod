@@ -9,6 +9,8 @@ require (
 	google.golang.org/grpc v1.78.0
 )
 
+replace github.com/ilyarogozin/task_board_go_project => ../proto
+
 require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
