@@ -6,18 +6,18 @@ import (
 	"log"
 	"net"
 
-	boardv1 "github.com/ilyarogozin/task_board_go_project/gen/go/board"
+	board "github.com/ilyarogozin/task_board_go_project/gen/go/board"
 	"google.golang.org/grpc"
 )
 
 type boardServer struct {
-	boardv1.UnimplementedBoardServiceServer
+	board.UnimplementedBoardServiceServer
 }
 
 func (s *boardServer) CreateBoard(
 	ctx context.Context,
-	req *boardv1.CreateBoardRequest,
-) (*boardv1.CreateBoardResponse, error) {
+	req *board.CreateBoardRequest,
+) (*board.BoardResponse, error) {
 
 	fmt.Println("=== CreateBoard received ===")
 	fmt.Println("Title:", req.Title)
@@ -25,8 +25,11 @@ func (s *boardServer) CreateBoard(
 	fmt.Println("OwnerID:", req.OwnerId)
 	fmt.Println("============================")
 
-	return &boardv1.CreateBoardResponse{
+	return &board.BoardResponse{
 		Id: "test-board-id",
+		Title: req.Title,
+		Description: req.Description,
+		OwnerId: req.OwnerId,
 	}, nil
 }
 
@@ -37,7 +40,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	boardv1.RegisterBoardServiceServer(grpcServer, &boardServer{})
+	board.RegisterBoardServiceServer(grpcServer, &boardServer{})
 
 	log.Println("board_service gRPC listening on :50051")
 
