@@ -1,46 +1,76 @@
-package cmd
+package main
 
 import (
+	"context"
 	"log"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
-	pb "board_service/proto/board"
+	board "github.com/ilyarogozin/task_board_go_project/gen/go/board"
 )
 
+type CreateBoardHTTPRequest struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	OwnerID     string `json:"owner_id"`
+}
+
 func main() {
-	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+	conn, err := grpc.NewClient(
+		"localhost:50051",
+		grpc.WithTransportCredentials(
+		insecure.NewCredentials(),
+	),
+	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to connect to gRPC: %v", err)
 	}
-	client := pb.NewBoardServiceClient(conn)
+	defer conn.Close()
+
+	boardClient := board.NewBoardServiceClient(conn)
 
 	app := fiber.New()
 
 	app.Post("/boards", func(c *fiber.Ctx) error {
-		var req pb.CreateBoardRequest
+		var req CreateBoardHTTPRequest
+
 		if err := c.BodyParser(&req); err != nil {
-			return err
+			return fiber.NewError(fiber.StatusBadRequest, "invalid json")
 		}
 
-		res, err := client.CreateBoard(c.Context(), &req)
-		if err != nil {
-			return err
+		if req.Title == "" {
+			return fiber.NewError(fiber.StatusBadRequest, "title is required")
 		}
-		return c.JSON(res)
+
+		if req.OwnerID == "" {
+			return fiber.NewError(fiber.StatusBadRequest, "owner_id is required")
+		}
+
+		if _, err := uuid.Parse(req.OwnerID); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "owner_id must be UUID")
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		resp, err := boardClient.CreateBoard(ctx, &board.CreateBoardRequest{
+			Title:       req.Title,
+			Description: req.Description,
+			OwnerId:     req.OwnerID,
+		})
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+
+		return c.JSON(fiber.Map{
+			"id": resp.Id,
+		})
 	})
 
-	app.Get("/boards/:id", func(c *fiber.Ctx) error {
-		res, err := client.GetBoard(
-			c.Context(),
-			&pb.GetBoardRequest{Id: c.Params("id")},
-		)
-		if err != nil {
-			return err
-		}
-		return c.JSON(res)
-	})
-
+	log.Println("api_gateway HTTP listening on :8080")
 	log.Fatal(app.Listen(":8080"))
 }
