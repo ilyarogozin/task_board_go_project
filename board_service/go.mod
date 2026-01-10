@@ -10,6 +10,8 @@ require (
 	google.golang.org/grpc v1.78.0
 )
 
+replace github.com/ilyarogozin/task_board_go_project => ../proto
+
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect

@@ -3,7 +3,7 @@
 # =========================
 
 PROTO_DIR := proto
-GEN_DIR   := gen/go
+GEN_DIR   := proto/gen/go
 
 PROTO_FILES := $(shell find $(PROTO_DIR) -name "*.proto")
 
