@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -41,12 +42,14 @@ func main() {
 		if err := c.BodyParser(&req); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid json")
 		}
+		fmt.Println("Received CreateBoard request:", req)
 
 		if req.Title == "" {
 			return fiber.NewError(fiber.StatusBadRequest, "title is required")
 		}
 
 		if req.OwnerID == "" {
+			fmt.Printf("DEBUG RAW BODY: %s\n", c.Body())
 			return fiber.NewError(fiber.StatusBadRequest, "owner_id is required")
 		}
 

@@ -3,38 +3,75 @@ package infra
 import (
 	"context"
 	"log"
+	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/segmentio/kafka-go"
 )
 
-func StartOutboxWorker(db *pgx.Conn) {
-	w := kafka.NewWriter(kafka.WriterConfig{
-		Brokers: []string{"localhost:9092"},
-		Topic:   "board-events",
-	})
+type Worker struct {
+	db     *pgxpool.Pool
+	writer *kafka.Writer
+	topic  string
+}
 
+func NewOutboxWorker(
+	db *pgxpool.Pool,
+	writer *kafka.Writer,
+) *Worker {
+	return &Worker{
+		db:     db,
+		writer: writer,
+	}
+}
+
+func (w *Worker) Start(ctx context.Context) {
 	go func() {
 		for {
-			rows, _ := db.Query(context.Background(),
-				`DELETE FROM outbox_events
-				 WHERE id IN (
-					SELECT id FROM outbox_events
-					LIMIT 10
-					FOR UPDATE SKIP LOCKED
-				 )
-				 RETURNING type, payload`)
+			rows, err := w.db.Query(ctx, `
+				SELECT id, aggregate_id, event_type, payload
+				FROM outbox
+				WHERE processed IS FALSE
+				ORDER BY created_at
+				LIMIT 10
+				FOR UPDATE SKIP LOCKED
+			`)
+			if err != nil {
+				log.Println("outbox query error:", err)
+				time.Sleep(time.Second)
+				continue
+			}
 
 			for rows.Next() {
-				var t string
-				var p []byte
-				rows.Scan(&t, &p)
+				var id string
+				var aggregateID string
+				var eventType string
+				var payload []byte
 
-				w.WriteMessages(context.Background(),
-					kafka.Message{Value: p},
+				if err := rows.Scan(&id, &aggregateID, &eventType, &payload); err != nil {
+					continue
+				}
+
+				err = w.writer.WriteMessages(ctx, kafka.Message{
+					Key:   []byte(aggregateID),
+					Value: payload,
+					Headers: []kafka.Header{
+						{Key: "event_type", Value: []byte(eventType)},
+					},
+				})
+				if err != nil {
+					log.Println("kafka write failed:", err)
+					continue
+				}
+
+				_, _ = w.db.Exec(ctx,
+					`UPDATE outbox SET processed = true WHERE id = $1`,
+					id,
 				)
 			}
+
+			rows.Close()
+			time.Sleep(500 * time.Millisecond)
 		}
 	}()
-	log.Println("Outbox worker started")
 }

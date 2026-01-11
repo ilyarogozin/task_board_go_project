@@ -2,38 +2,81 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"board_service/internal/domain"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"board_service/internal/domain/board"
 )
 
-type BoardRepository interface {
-	Create(ctx context.Context, tx pgx.Tx, b domain.Board) error
-	Get(ctx context.Context, id string) (*domain.Board, error)
+type BoardRepository struct {
+	db *pgxpool.Pool
 }
 
-type boardRepo struct {
-	db *pgx.Conn
+func NewBoardRepository(db *pgxpool.Pool) *BoardRepository {
+	return &BoardRepository{db: db}
 }
 
-func NewBoardRepo(db *pgx.Conn) BoardRepository {
-	return &boardRepo{db}
-}
+func (r *BoardRepository) CreateBoardWithOutbox(
+	ctx context.Context,
+	title string,
+	description string,
+	ownerId string,
+) (string, error) {
 
-func (r *boardRepo) Create(ctx context.Context, tx pgx.Tx, b domain.Board) error {
-	_, err := tx.Exec(ctx,
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+
+	boardID := uuid.New()
+	now := time.Now()
+
+	_, err = tx.Exec(
+		ctx,
 		`INSERT INTO boards (id, title, description, owner_id)
-		 VALUES ($1,$2,$3,$4)`,
-		b.ID, b.Title, b.Description, b.OwnerID,
+		 VALUES ($1, $2, $3, $4)`,
+		boardID, title, description, ownerId,
 	)
-	return err
-}
+	if err != nil {
+		return "", err
+	}
 
-func (r *boardRepo) Get(ctx context.Context, id string) (*domain.Board, error) {
-	row := r.db.QueryRow(ctx,
-		`SELECT id,title,description,owner_id FROM boards WHERE id=$1`, id)
+	event := board.BoardCreatedEvent{
+		Id:          boardID.String(),
+		Title:       title,
+		Description: description,
+		OwnerId:     ownerId,
+	}
 
-	var b domain.Board
-	err := row.Scan(&b.ID, &b.Title, &b.Description, &b.OwnerID)
-	return &b, err
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = tx.Exec(
+		ctx,
+		`INSERT INTO outbox
+		 (id, aggregate_type, aggregate_id, event_type, payload, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		uuid.New(),
+		"board",
+		boardID,
+		"BoardCreated",
+		payload,
+		now,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+
+	return boardID.String(), nil
 }

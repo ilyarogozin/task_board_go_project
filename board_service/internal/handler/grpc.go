@@ -1,24 +1,44 @@
 package handler
 
 import (
+	"fmt"
 	"context"
 
-	pb "board_service/proto/board"
-	"board_service/internal/usecase"
+	board "github.com/ilyarogozin/task_board_go_project/gen/go/board"
+
+	"board_service/internal/repository"
 )
 
-type GRPC struct {
-	pb.UnimplementedBoardServiceServer
-	UC *usecase.BoardUsecase
+type BoardServer struct {
+	board.UnimplementedBoardServiceServer
+	repo repository.BoardRepository
 }
 
-func (g *GRPC) CreateBoard(ctx context.Context, r *pb.CreateBoardRequest) (*pb.BoardResponse, error) {
-	b, err := g.UC.CreateBoard(ctx, r.Title, r.Description, r.OwnerId)
+func (s *BoardServer) CreateBoard(
+	ctx context.Context,
+	req *board.CreateBoardRequest,
+) (*board.BoardResponse, error) {
+
+	fmt.Println("=== CreateBoard received ===")
+	fmt.Println("Title:", req.Title)
+	fmt.Println("Description:", req.Description)
+	fmt.Println("OwnerID:", req.OwnerId)
+	fmt.Println("============================")
+
+	id, err := s.repo.CreateBoardWithOutbox(
+		ctx,
+		req.Title,
+		req.Description,
+		req.OwnerId,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.BoardResponse{
-		Id: b.ID, Title: b.Title, Description: b.Description, OwnerId: b.OwnerID,
+	return &board.BoardResponse{
+		Id:          id,
+		Title:       req.Title,
+		Description: req.Description,
+		OwnerId:     req.OwnerId,
 	}, nil
 }
