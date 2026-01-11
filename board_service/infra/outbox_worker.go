@@ -30,7 +30,7 @@ func (w *Worker) Start(ctx context.Context) {
 		for {
 			rows, err := w.db.Query(ctx, `
 				SELECT id, aggregate_id, event_type, payload
-				FROM outbox
+				FROM outbox_events
 				WHERE processed IS FALSE
 				ORDER BY created_at
 				LIMIT 10
@@ -65,7 +65,7 @@ func (w *Worker) Start(ctx context.Context) {
 				}
 
 				_, _ = w.db.Exec(ctx,
-					`UPDATE outbox SET processed = true WHERE id = $1`,
+					`UPDATE outbox_events SET processed = true WHERE id = $1`,
 					id,
 				)
 			}

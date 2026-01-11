@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -26,6 +27,10 @@ func (r *BoardRepository) CreateBoardWithOutbox(
 	description string,
 	ownerId string,
 ) (string, error) {
+
+	if r.db == nil {
+        return "", errors.New("pgx pool is nil (repository not initialized)")
+    }
 
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
@@ -60,7 +65,7 @@ func (r *BoardRepository) CreateBoardWithOutbox(
 
 	_, err = tx.Exec(
 		ctx,
-		`INSERT INTO outbox
+		`INSERT INTO outbox_events
 		 (id, aggregate_type, aggregate_id, event_type, payload, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		uuid.New(),

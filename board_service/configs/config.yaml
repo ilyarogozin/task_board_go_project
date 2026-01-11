@@ -1,0 +1,13 @@
+server:
+  grpc_port: ":50051"
+
+database:
+  max_open_conns: 10
+  max_idle_conns: 5
+
+kafka:
+  topic: "board-events"
+  partition: 0
+
+logging:
+  level: "info"

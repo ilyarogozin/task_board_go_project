@@ -1,17 +1,24 @@
 package handler
 
 import (
-	"fmt"
 	"context"
 
 	board "github.com/ilyarogozin/task_board_go_project/gen/go/board"
+	"github.com/rs/zerolog/log"
 
 	"board_service/internal/repository"
 )
 
 type BoardServer struct {
 	board.UnimplementedBoardServiceServer
-	repo repository.BoardRepository
+	repo *repository.BoardRepository
+}
+
+func NewBoardServer(repo *repository.BoardRepository) *BoardServer {
+    if repo == nil {
+        panic("BoardRepository is nil")
+    }
+    return &BoardServer{repo: repo}
 }
 
 func (s *BoardServer) CreateBoard(
@@ -19,11 +26,11 @@ func (s *BoardServer) CreateBoard(
 	req *board.CreateBoardRequest,
 ) (*board.BoardResponse, error) {
 
-	fmt.Println("=== CreateBoard received ===")
-	fmt.Println("Title:", req.Title)
-	fmt.Println("Description:", req.Description)
-	fmt.Println("OwnerID:", req.OwnerId)
-	fmt.Println("============================")
+	log.Info().
+		Str("title", req.Title).
+		Str("description", req.Description).
+		Str("owner_id", req.OwnerId).
+		Msg("CreateBoard request received")
 
 	id, err := s.repo.CreateBoardWithOutbox(
 		ctx,
@@ -34,6 +41,10 @@ func (s *BoardServer) CreateBoard(
 	if err != nil {
 		return nil, err
 	}
+
+	log.Info().
+		Str("board_id", id).
+		Msg("Board created successfully")
 
 	return &board.BoardResponse{
 		Id:          id,
