@@ -12,9 +12,11 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
-	"board_service/infra"
+	"board_service/infra/outbox"
+	"board_service/infra/kafka"
 	"board_service/internal/config"
 	"board_service/internal/handler"
+	boarduc "board_service/internal/usecase/board"
 	"board_service/internal/repository"
 )
 
@@ -47,7 +49,8 @@ func Run() error {
 	}
 	grpcServer := grpc.NewServer()
 	boardRepo := repository.NewBoardRepository(pool)
-	boardServer := handler.NewBoardServer(boardRepo)
+	boardUsecase := boarduc.NewService(boardRepo)
+	boardServer := handler.NewBoardServer(boardUsecase)
 	board.RegisterBoardServiceServer(grpcServer, boardServer)
 
 	go func() {
@@ -61,14 +64,14 @@ func Run() error {
 	}()
 
 	// Kafka
-	writer := infra.NewKafkaWriter(
+	writer := kafka.NewKafkaProducer(
 	cfg.Kafka.Brokers,
 	cfg.Kafka.Topic,
 	)
 	defer writer.Close()
 
 	// Outbox worker
-	worker := infra.NewOutboxWorker(pool, writer)
+	worker := outbox.NewOutboxWorker(pool, writer)
 	worker.Start(ctx)
 
 	// block until exit signal

@@ -23,10 +23,10 @@ CREATE TABLE tasks (
 
 CREATE TABLE outbox_events (
     id UUID PRIMARY KEY,
-    aggregate_type TEXT NOT NULL,
     aggregate_id UUID NOT NULL,
     event_type TEXT NOT NULL,
     payload JSONB NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP NOT NULL,
-    processed BOOLEAN DEFAULT FALSE
+    processed_at TIMESTAMP
 );

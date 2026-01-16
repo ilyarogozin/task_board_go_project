@@ -6,6 +6,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.10
 	github.com/google/uuid v1.6.0
 	github.com/ilyarogozin/task_board_go_project v0.0.0-20260108172828-86edaf977293
+	github.com/rs/zerolog v1.34.0
 	google.golang.org/grpc v1.78.0
 )
 

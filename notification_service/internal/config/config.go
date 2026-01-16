@@ -11,14 +11,9 @@ import (
 )
 
 type Config struct {
-	Server   GRPCServerConfig
 	Database DatabaseConfig
 	Kafka    KafkaConfig
 	Logger   LoggerConfig
-}
-
-type GRPCServerConfig struct {
-	GRPCPort string
 }
 
 type DatabaseConfig struct {
@@ -28,9 +23,8 @@ type DatabaseConfig struct {
 }
 
 type KafkaConfig struct {
-	Brokers   []string
-	Topic     string
-	Partition int
+	Brokers []string
+	Topic   string
 }
 
 type LoggerConfig struct {
@@ -38,7 +32,7 @@ type LoggerConfig struct {
 }
 
 func LoadConfig() (*Config, error) {
-	// инициализируем базовый логгер ДО всего
+	// базовая инициализация логгера (до чтения конфига)
 	initLogger(zerolog.InfoLevel)
 
 	// .env
@@ -57,12 +51,6 @@ func LoadConfig() (*Config, error) {
 		log.Warn().
 			Err(err).
 			Msg("failed to read config.yaml")
-	}
-
-	// gRPC Server
-	grpcPort := v.GetString("server.grpc_port")
-	if envPort := os.Getenv("GRPC_PORT"); envPort != "" {
-		grpcPort = envPort
 	}
 
 	// Database
@@ -87,8 +75,6 @@ func LoadConfig() (*Config, error) {
 		topic = v.GetString("kafka.topic")
 	}
 
-	partition := v.GetInt("kafka.partition")
-
 	// Logger level
 	logLevelStr := os.Getenv("LOG_LEVEL")
 	if logLevelStr == "" {
@@ -104,29 +90,24 @@ func LoadConfig() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Server: GRPCServerConfig{
-			GRPCPort: grpcPort,
-		},
 		Database: DatabaseConfig{
 			DSN:          dsn,
 			MaxOpenConns: maxOpen,
 			MaxIdleConns: maxIdle,
 		},
 		Kafka: KafkaConfig{
-			Brokers:   brokers,
-			Topic:     topic,
-			Partition: partition,
+			Brokers: brokers,
+			Topic:   topic,
 		},
 		Logger: LoggerConfig{
 			Level: level,
 		},
 	}
 
-	// переинициализируем логгер уже с нужным уровнем
+	// финальная инициализация логгера с уровнем из конфига
 	initLogger(cfg.Logger.Level)
 
 	log.Info().
-		Str("grpc_port", grpcPort).
 		Str("kafka_topic", topic).
 		Msg("configuration loaded successfully")
 

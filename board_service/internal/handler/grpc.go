@@ -6,19 +6,16 @@ import (
 	board "github.com/ilyarogozin/task_board_go_project/gen/go/board"
 	"github.com/rs/zerolog/log"
 
-	"board_service/internal/repository"
+	boarduc "board_service/internal/usecase/board"
 )
 
 type BoardServer struct {
 	board.UnimplementedBoardServiceServer
-	repo *repository.BoardRepository
+	usecase *boarduc.Service
 }
 
-func NewBoardServer(repo *repository.BoardRepository) *BoardServer {
-    if repo == nil {
-        panic("BoardRepository is nil")
-    }
-    return &BoardServer{repo: repo}
+func NewBoardServer(usecase *boarduc.Service) *BoardServer {
+	return &BoardServer{usecase: usecase}
 }
 
 func (s *BoardServer) CreateBoard(
@@ -28,11 +25,9 @@ func (s *BoardServer) CreateBoard(
 
 	log.Info().
 		Str("title", req.Title).
-		Str("description", req.Description).
-		Str("owner_id", req.OwnerId).
 		Msg("CreateBoard request received")
 
-	id, err := s.repo.CreateBoardWithOutbox(
+	id, err := s.usecase.CreateBoard(
 		ctx,
 		req.Title,
 		req.Description,
@@ -41,10 +36,6 @@ func (s *BoardServer) CreateBoard(
 	if err != nil {
 		return nil, err
 	}
-
-	log.Info().
-		Str("board_id", id).
-		Msg("Board created successfully")
 
 	return &board.BoardResponse{
 		Id:          id,

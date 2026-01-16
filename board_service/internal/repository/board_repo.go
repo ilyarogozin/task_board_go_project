@@ -9,9 +9,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-
-	"board_service/internal/domain/board"
 )
+
+type BoardCreatedEvent struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	OwnerID     string `json:"owner_id"`
+}
 
 type BoardRepository struct {
 	db *pgxpool.Pool
@@ -21,11 +26,11 @@ func NewBoardRepository(db *pgxpool.Pool) *BoardRepository {
 	return &BoardRepository{db: db}
 }
 
-func (r *BoardRepository) CreateBoardWithOutbox(
+func (r *BoardRepository) CreateBoard(
 	ctx context.Context,
 	title string,
 	description string,
-	ownerId string,
+	ownerID string,
 ) (string, error) {
 
 	if r.db == nil {
@@ -45,17 +50,17 @@ func (r *BoardRepository) CreateBoardWithOutbox(
 		ctx,
 		`INSERT INTO boards (id, title, description, owner_id)
 		 VALUES ($1, $2, $3, $4)`,
-		boardID, title, description, ownerId,
+		boardID, title, description, ownerID,
 	)
 	if err != nil {
 		return "", err
 	}
 
-	event := board.BoardCreatedEvent{
-		Id:          boardID.String(),
+	event := BoardCreatedEvent{
+		ID:          boardID.String(),
 		Title:       title,
 		Description: description,
-		OwnerId:     ownerId,
+		OwnerID:     ownerID,
 	}
 
 	payload, err := json.Marshal(event)
@@ -66,10 +71,9 @@ func (r *BoardRepository) CreateBoardWithOutbox(
 	_, err = tx.Exec(
 		ctx,
 		`INSERT INTO outbox_events
-		 (id, aggregate_type, aggregate_id, event_type, payload, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		 (id, aggregate_id, event_type, payload, created_at)
+		 VALUES ($1, $2, $3, $4, $5)`,
 		uuid.New(),
-		"board",
 		boardID,
 		"BoardCreated",
 		payload,
