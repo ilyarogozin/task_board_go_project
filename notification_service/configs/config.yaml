@@ -1,0 +1,12 @@
+database:
+  dsn: postgres://postgres:postgres@localhost:5436/notification_db?sslmode=disable
+  max_open_conns: 10
+  max_idle_conns: 5
+
+kafka:
+  brokers:
+    - localhost:9092
+  topic: board-events
+
+logging:
+  level: info
