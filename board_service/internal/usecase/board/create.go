@@ -13,6 +13,10 @@ func (s *Service) CreateBoard(
 	rawOwnerID string,
 ) (string, error) {
 
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
 	title, err := board.NewBoardTitle(rawTitle)
 	if err != nil {
 		return "", err
@@ -23,7 +27,10 @@ func (s *Service) CreateBoard(
 		return "", err
 	}
 
-	description := board.NewBoardDescription(rawDescription)
+	description, err := board.NewBoardDescription(rawDescription)
+	if err != nil {
+		return "", err
+	}
 
 	id, err := s.repo.CreateBoard(
 		ctx,

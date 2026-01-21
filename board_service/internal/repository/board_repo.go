@@ -6,17 +6,12 @@ import (
 	"time"
 	"errors"
 
+	"board_service/internal/domain/board"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-type BoardCreatedEvent struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	OwnerID     string `json:"owner_id"`
-}
 
 type BoardRepository struct {
 	db *pgxpool.Pool
@@ -30,7 +25,7 @@ func (r *BoardRepository) CreateBoard(
 	ctx context.Context,
 	title string,
 	description string,
-	ownerID string,
+	ownerID uuid.UUID,
 ) (string, error) {
 
 	if r.db == nil {
@@ -41,7 +36,7 @@ func (r *BoardRepository) CreateBoard(
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer tx.Rollback(context.Background())
 
 	boardID := uuid.New()
 	now := time.Now()
@@ -56,12 +51,13 @@ func (r *BoardRepository) CreateBoard(
 		return "", err
 	}
 
-	event := BoardCreatedEvent{
-		ID:          boardID.String(),
+	event := board.BoardCreatedEvent{
+		ID:          boardID,
 		Title:       title,
 		Description: description,
 		OwnerID:     ownerID,
 	}
+	event_type := event.EventType()
 
 	payload, err := json.Marshal(event)
 	if err != nil {
@@ -75,7 +71,7 @@ func (r *BoardRepository) CreateBoard(
 		 VALUES ($1, $2, $3, $4, $5)`,
 		uuid.New(),
 		boardID,
-		"BoardCreated",
+		event_type,
 		payload,
 		now,
 	)

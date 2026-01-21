@@ -2,11 +2,14 @@ package handler
 
 import (
 	"context"
+	"errors"
 
 	board "github.com/ilyarogozin/task_board_go_project/gen/go/board"
-	"github.com/rs/zerolog/log"
-
 	boarduc "board_service/internal/usecase/board"
+
+	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type BoardServer struct {
@@ -23,6 +26,11 @@ func (s *BoardServer) CreateBoard(
 	req *board.CreateBoardRequest,
 ) (*board.BoardResponse, error) {
 
+	if err := ctx.Err(); err != nil {
+		log.Warn().Err(err).Msg("request context already cancelled")
+		return nil, mapContextError(err)
+	}
+
 	log.Info().
 		Str("title", req.Title).
 		Msg("CreateBoard request received")
@@ -34,7 +42,19 @@ func (s *BoardServer) CreateBoard(
 		req.OwnerId,
 	)
 	if err != nil {
-		return nil, err
+
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			log.Warn().Err(err).Msg("request cancelled during CreateBoard")
+			return nil, mapContextError(err)
+		}
+
+		log.Error().Err(err).Msg("failed to create board")
+		return nil, status.Error(codes.Internal, "failed to create board")
+	}
+
+	if err := ctx.Err(); err != nil {
+		log.Warn().Err(err).Msg("request cancelled before response")
+		return nil, mapContextError(err)
 	}
 
 	return &board.BoardResponse{
@@ -43,4 +63,15 @@ func (s *BoardServer) CreateBoard(
 		Description: req.Description,
 		OwnerId:     req.OwnerId,
 	}, nil
+}
+
+func mapContextError(err error) error {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return status.Error(codes.DeadlineExceeded, "request deadline exceeded")
+	case errors.Is(err, context.Canceled):
+		return status.Error(codes.Canceled, "request cancelled by client")
+	default:
+		return status.Error(codes.Internal, "context error")
+	}
 }
