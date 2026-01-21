@@ -11,12 +11,12 @@ func NewBoard(
 	title BoardTitle,
 	description BoardDescription,
 	ownerID OwnerID,
-) *Board {
+) (*Board, error) {
 	return &Board{
 		title:       title,
 		description: description,
 		ownerID:     ownerID,
-	}
+	}, nil
 }
 
 func (b *Board) ID() BoardID {

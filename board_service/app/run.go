@@ -49,7 +49,10 @@ func Run() error {
 	}
 	grpcServer := grpc.NewServer()
 	boardRepo := repository.NewBoardRepository(pool)
-	boardUsecase := boarduc.NewService(boardRepo)
+	boardUsecase, err := boarduc.NewService(boardRepo)
+	if err != nil {
+		log.Error().Err(err)
+	}
 	boardServer := handler.NewBoardServer(boardUsecase)
 	board.RegisterBoardServiceServer(grpcServer, boardServer)
 

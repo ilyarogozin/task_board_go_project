@@ -1,18 +1,23 @@
 package board
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/google/uuid"
+)
 
 type OwnerID struct {
-	value string
+	value uuid.UUID
 }
 
 func NewOwnerID(value string) (OwnerID, error) {
-	if value == "" {
-		return OwnerID{}, errors.New("owner id is required")
+	id, err := uuid.Parse(value)
+	if err != nil {
+		return OwnerID{}, errors.New("invalid owner id")
 	}
-	return OwnerID{value: value}, nil
+	return OwnerID{value: id}, nil
 }
 
-func (id OwnerID) Value() string {
-	return id.value
+func (o OwnerID) Value() uuid.UUID {
+	return o.value
 }
